@@ -1,131 +1,116 @@
+# StudentID: 001454573
+
 import csv
 import datetime
 
-#Loading the CSV files
-with open("csvs/address.csv") as csvAddress:
-    Address = csv.reader(csvAddress)
-    Address = list(Address)
-with open("csvs/distance.csv") as csvDistance:
-    Distance = csv.reader(csvDistance)
-    Distance = list(Distance)   
+# Load address and distance data from CSV files
+with open("csvs/address.csv") as addressFile:
+    addressData = csv.reader(addressFile)
+    addressData = list(addressData)
 
-#Creating the hash table
-#Source: W-1_ChainingHashTable_zyBooks_Key-Value.py
+with open("csvs/distance.csv") as distanceFile:
+    distanceData = csv.reader(distanceFile)
+    distanceData = list(distanceData)   
+
+# Hash table class for storing and managing package data
 class HashTableWChains:
-    def __init__(self, initialcapacity=40):
+    def __init__(self, initialCapacity=40):
+        # Initialize hash table with empty lists
         self.table = []
-        for i in range(initialcapacity):
+        for i in range(initialCapacity):
             self.table.append([])
 
-    #Inserts a new item into the hash table and will update an item in the list already
+    # Insert or update an item in the hash table
     def insert(self, key, item):
         bucket = hash(key) % len(self.table)
-        bucket_list = self.table[bucket]
-        #update key if it is already in the bucket
-        for kv in bucket_list:
-            #print (key_value)
-            if kv[0] == key:
-                kv[1] = item
-                return True
-        #if not in the bucket, insert item to the end of the list    
-        key_value = [key, item]
-        bucket_list.append(key_value)
+        bucketList = self.table[bucket]
+        
+        for keyValue in bucketList:
+            if keyValue[0] == key:
+                keyValue[1] = item
+                return True    
+        keyValue = [key, item]
+        bucketList.append(keyValue)
         return True
-    #Searches the hash table for an item with the matching key
-    #Will return the item if founcd, or None if not found
+
+    # Search for an item by key
     def search(self, key):
         bucket = hash(key) % len(self.table)
-        bucket_list = self.table[bucket]
-        #print(bucket_list)
-        #search key in bucket
-        for kv in bucket_list:
-            #print(key_value)
-            if kv[0] == key:
-                return kv[1]  #value
+        bucketList = self.table[bucket]
+        for keyValue in bucketList:
+            if keyValue[0] == key:
+                return keyValue[1]
         return None 
         
-    #Removes an item with matching key from the hash table
+    # Remove an item by key
     def remove(self, key):
         bucket = hash(key) % len(self.table)
-        bucket_list = self.table[bucket]
-        #removes the item if it is present
-        if key in bucket_list:
-            bucket_list.remove(key)
-
-#where the criteria needed for/about the package is stored    
-class Packages:
-    def __init__(self, ID, street, city, state, zip,deadline,weight, notes, status,departureTime,deliveryTime):
-        self.ID = ID
+        bucketList = self.table[bucket]
+        if key in bucketList:
+            bucketList.remove(key)
+    
+# Class representing a package
+class Package:
+    def __init__(self, id, street, city, state, zipCode, deadline, weight, notes, status, departureTime, deliveryTime):
+        self.id = id
         self.street = street
         self.city = city
         self.state = state
-        self.zip = zip
+        self.zipCode = zipCode
         self.deadline = deadline
         self.weight = weight
         self.notes = notes
         self.status = status
-        self.departureTime = None #departureTime
-        self.deliveryTime = None #deliveryTime
+        self.departureTime = None 
+        self.deliveryTime = None
 
     def __str__(self):
-        return "ID: %s, %-20s, %s, %s,%s, Deadline: %s,%s,%s,Departure Time: %s,Delivery Time: %s" % (self.ID, self.street, self.city, self.state, self.zip, self.deadline, self.weight, self.status, self.departureTime, self.deliveryTime)   
-    #This method will update the status of a package depending on the time entered
-    def statusUpdate(self, timeChange):
+        return "ID: %s, %-20s, %s, %s,%s, Deadline: %s,%s,%s,Departure Time: %s,Delivery Time: %s" % (self.id, self.street, self.city, self.state, self.zipCode, self.deadline, self.weight, self.status, self.departureTime, self.deliveryTime)
+
+    # Update the status of a package based on the current time
+    def statusUpdate(self, currentTime):
         if self.deliveryTime == None:
             self.status = "At the hub"
-        elif timeChange < self.departureTime:
+        elif currentTime < self.departureTime:
             self.status = "At the hub"   
-        elif timeChange < self.deliveryTime:
+        elif currentTime < self.deliveryTime:
             self.status = "En route"     
         else:
             self.status = "Delivered" 
-        if self.ID == 9:          #will change the address for package 9 to the correct address once it's been received
-            if timeChange > datetime.timedelta (hours=10, minutes= 20):
+        # Special case for package with ID 9
+        if self.id == 9:
+            if currentTime > datetime.timedelta(hours=10, minutes=20):
                 self.street = "410 S State St"  
-                self.zip = "84111"  
+                self.zipCode = "84111"  
             else:
                 self.street = "300 State St"
-                self.zip = "84103"     
+                self.zipCode = "84103"     
 
-
-
-    #Creating the Packages with info from the CSV to go into the Hash Table
+# Load package data from CSV file and insert into the hash table
 def loadPackageData(filename):
-    with open(filename) as packages:
-        packageInfo = csv.reader(packages,delimiter=',')
-        next (packageInfo)
+    with open(filename) as packageFile:
+        packageInfo = csv.reader(packageFile, delimiter=',')
+        next(packageInfo)  # Skip header row
         for package in packageInfo:
-            pID = int(package[0])
-            #print(pID)
-            pStreet = package[1]
-            #print(pStreet)
-            pCity = package[2]
-            #print(pCity)
-            pState = package[3]
-            #print(pState)
-            pZip = package[4]
-            #print(pZip)
-            pDeadline = package[5]
-            #print(pDeadline)
-            pWeight = package[6]
-            #print(pWeight)
-            pNotes = package[7]
-            #print(pNotes)
-            pStatus = "At the Hub"
-            pDepartureTime = None
-            pDeliveryTime = None
+            packageId = int(package[0])
+            packageStreet = package[1]
+            packageCity = package[2]
+            packageState = package[3]
+            packageZip = package[4]
+            packageDeadline = package[5]
+            packageWeight = package[6]
+            packageNotes = package[7]
+            packageStatus = "At the Hub"
+            packageDepartureTime = None
+            packageDeliveryTime = None
 
-            #Inserting Package info into the hash
-            p = Packages(pID, pStreet, pCity, pState, pZip, pDeadline, pWeight, pNotes, pStatus, pDepartureTime, pDeliveryTime)
-            #print (p)
-            packageHash.insert(pID, p)
+            newPackage = Package(packageId, packageStreet, packageCity, packageState, packageZip, packageDeadline, packageWeight, packageNotes, packageStatus, packageDepartureTime, packageDeliveryTime)
+            packageHash.insert(packageId, newPackage)
 
-#Hash table for the packages
-packageHash = HashTableWChains() 
+packageHash = HashTableWChains()
 
-
-#the requirements to create a truck
-class Trucks:
+# Class representing a delivery truck
+class Truck:
     def __init__(self, speed, miles, currentLocation, departTime, packages):
         self.speed = speed
         self.miles = miles
@@ -137,91 +122,77 @@ class Trucks:
     def __str__(self):
         return "%s,%s,%s,%s,%s,%s" % (self.speed, self.miles, self.currentLocation, self.time, self.departTime, self.packages)
 
-#finds the minimum distance for the next address
-def addresss(address):
-    for row in Address:
+# Find the index of an address in the address data
+def findAddressIndex(address):
+    for row in addressData:
         if address in row[2]:
-           return int(row[0])
+            return int(row[0])
 
-
-#finds the distance between two addresses
-def Betweenst(addy1,addy2):
-    distance = Distance[addy1][addy2]
+# Calculate the distance between two addresses
+def calculateDistance(addressIndex1, addressIndex2):
+    distance = distanceData[addressIndex1][addressIndex2]
     if distance == '':
-        distance = Distance[addy2][addy1]
+        distance = distanceData[addressIndex2][addressIndex1]
     return float(distance)
 
-
-#pulls data from CSV into the function
 loadPackageData('csvs/package.csv')
 
-#manually loading the trucks and assigning them a departure time
-truck1 = Trucks(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=8),[1,13,14,15,16,19,20,27,29,30,31,34,37,40])
-truck2 = Trucks(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=11),[2,3,4,5,9,18,26,28,32,35,36,38])
-truck3 = Trucks(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=9, minutes=5),[6,7,8,10,11,12,17,21,22,23,24,25,33,39])
+# Initialize trucks with their respective packages and departure times
+truck1 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=8), [1, 13, 14, 15, 16, 19, 20, 27, 29, 30, 31, 34, 37, 40])
+truck2 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=11), [2, 3, 4, 5, 9, 18, 26, 28, 32, 35, 36, 38])
+truck3 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=9, minutes=5), [6, 7, 8, 10, 11, 12, 17, 21, 22, 23, 24, 25, 33, 39])
 
-
-#algorithm to deliver the packages on the truck
+# Function to simulate the delivery of packages by a truck
 def truckDeliverPackages(truck):
-    print("Hello!")
-    #creates a list for all the packages that need to be delivered
-    enroute = []
-    #puts packages from the hash table into the enroute list
-    for packageID in truck.packages:
-        package = packageHash.search(packageID)
-        enroute.append(package)
+    enroutePackages = []
+    for packageId in truck.packages:
+        package = packageHash.search(packageId)
+        enroutePackages.append(package)
 
     truck.packages.clear()
-    #while there are packages left to be delivered the algorithm will run
-    while len(enroute) > 0:
-        nextAddy = 2000
+    while len(enroutePackages) > 0:
+        shortestDistance = float('inf')
         nextPackage = None
-        for package in enroute:
-            if package.ID in [25, 6]:
+        for package in enroutePackages:
+            # Priority packages
+            if package.id in [25, 6]:
                 nextPackage = package
-                nextAddy = Betweenst(addresss(truck.currentLocation), addresss(package.street))
+                shortestDistance = calculateDistance(findAddressIndex(truck.currentLocation), findAddressIndex(package.street))
                 break
-            if Betweenst(addresss(truck.currentLocation), addresss(package.street)) <= nextAddy:
-                nextAddy = Betweenst(addresss(truck.currentLocation), addresss(package.street))
+            # Find the closest package
+            if calculateDistance(findAddressIndex(truck.currentLocation), findAddressIndex(package.street)) < shortestDistance:
+                shortestDistance = calculateDistance(findAddressIndex(truck.currentLocation), findAddressIndex(package.street))
                 nextPackage = package
-        truck.packages.append(nextPackage.ID)    
-        enroute.remove(nextPackage)
-        truck.miles += nextAddy
+        truck.packages.append(nextPackage.id)    
+        enroutePackages.remove(nextPackage)
+        truck.miles += shortestDistance
         truck.currentLocation = nextPackage.street
-        truck.time += datetime.timedelta(hours=nextAddy / 18)
+        truck.time += datetime.timedelta(hours=shortestDistance / truck.speed)
         nextPackage.deliveryTime = truck.time
         nextPackage.departureTime = truck.departTime
-
-     
-        #enroute.remove(nextPackage)
-        #print(nextPackage.street)
                       
-    
-
-#Actually calls the trucks to leave to being delivering packages
+# Deliver packages using the trucks
 truckDeliverPackages(truck1)
 truckDeliverPackages(truck3)
-#ensures truck 2 won't leave until either truck 1 or 2 have returned
 truck2.departTime = min(truck1.time, truck3.time)
 truckDeliverPackages(truck2)
 
-#title
 print("Western Governors University Parcel Service")
-#total miles for all of the trucks
-print ("The overall miles are:", (truck1.miles + truck2.miles + truck3.miles))
 
+totalMileage = truck1.miles + truck2.miles + truck3.miles
+print("Total Mileage for all trucks:", totalMileage)
+
+# Interactive loop for user to check package status
 while True:
+    userInput = input("\nEnter a time (HH:MM) to view the status of each package or 'exit' to quit: ")
+    if userInput.lower() == 'exit':
+        break  # Exit the loop
     
-    #print(truck1.miles + truck2.miles + truck3.miles)
-    #pazzazz
-    userTime = input("Please enter a time for which you'd like to see the status of each package. Format: HH:MM. ")
-    (h, m) = userTime.split(":")
-    timeChange = datetime.timedelta(hours=int(h), minutes=int(m))
-    try:
-        singleEntry = [int(input("Enter the Package ID or nothing at all."))]
-    except ValueError:
-        singleEntry =  range(1, 41)
-    for packageID in singleEntry:
-        package = packageHash.search(packageID)
-        package.statusUpdate(timeChange)
-        print(str(package))
+    (hour, minute) = userInput.split(":")
+    currentTime = datetime.timedelta(hours=int(hour), minutes=int(minute))
+    
+    for packageId in range(1, 41):
+        package = packageHash.search(packageId)
+        if package:
+            package.statusUpdate(currentTime)
+            print(str(package))
