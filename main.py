@@ -51,7 +51,7 @@ class HashTableWChains:
     
 # Class representing a package
 class Package:
-    def __init__(self, id, street, city, state, zipCode, deadline, weight, notes, status, departureTime, deliveryTime):
+    def __init__(self, id, street, city, state, zipCode, deadline, weight, notes, status, departureTime, deliveryTime,instructions,truckNumber=None):
         self.id = id
         self.street = street
         self.city = city
@@ -61,11 +61,25 @@ class Package:
         self.weight = weight
         self.notes = notes
         self.status = status
+        self.instructions = instructions
         self.departureTime = None 
         self.deliveryTime = None
+        self.truckNumber = truckNumber
 
     def __str__(self):
-        return "ID: %s, %-20s, %s, %s,%s, Deadline: %s,%s,%s,Departure Time: %s,Delivery Time: %s" % (self.id, self.street, self.city, self.state, self.zipCode, self.deadline, self.weight, self.status, self.departureTime, self.deliveryTime)
+        # Only include delivery time in the string if the package status is 'Delivered'
+        deliveryTimeStr = self.deliveryTime if self.status == "Delivered" else "N/A"
+        truckNumberStr = f"Truck {self.truckNumber}" if self.truckNumber is not None else "Not assigned"
+        return (
+            f"ID: {self.id}, "
+            f"Address: {self.street}, {self.city}, {self.state}, {self.zipCode}, "
+            f"Deadline: {self.deadline}, "
+            f"Weight: {self.weight}, "
+            f"Status: {self.status}, "
+            f"Departure Time: {self.departureTime}, "
+            f"Delivery Time: {deliveryTimeStr}, "
+            f"Assigned to: {truckNumberStr}"
+        )
 
     # Update the status of a package based on the current time
     def statusUpdate(self, currentTime):
@@ -84,7 +98,17 @@ class Package:
                 self.zipCode = "84111"  
             else:
                 self.street = "300 State St"
-                self.zipCode = "84103"     
+                self.zipCode = "84103"   
+
+# Global lists to store package IDs for each truck
+truck1_packages = []
+truck2_packages = []
+truck3_packages = []
+
+def assignPackageToTruck(packageId, truckNumber):
+    package = packageHash.search(packageId)
+    if package:
+        package.truckNumber = truckNumber
 
 # Load package data from CSV file and insert into the hash table
 def loadPackageData(filename):
@@ -100,12 +124,29 @@ def loadPackageData(filename):
             packageDeadline = package[5]
             packageWeight = package[6]
             packageNotes = package[7]
+            packageInstructions = package[7]
             packageStatus = "At the Hub"
             packageDepartureTime = None
             packageDeliveryTime = None
 
-            newPackage = Package(packageId, packageStreet, packageCity, packageState, packageZip, packageDeadline, packageWeight, packageNotes, packageStatus, packageDepartureTime, packageDeliveryTime)
+            newPackage = Package(packageId, packageStreet, packageCity, packageState, packageZip, packageDeadline, packageWeight, packageNotes, packageStatus, packageDepartureTime, packageDeliveryTime, packageInstructions)
             packageHash.insert(packageId, newPackage)
+
+            if "Can only be on truck 2" in packageInstructions:
+                truck2_packages.append(packageId)
+            elif "Delayed on flight" in packageInstructions or "Wrong address listed" in packageInstructions:
+                truck3_packages.append(packageId)
+            else:
+                truck1_packages.append(packageId)
+
+    # Assign packages to trucks after loading all packages
+    for packageId in truck1_packages:
+        assignPackageToTruck(packageId, 1)
+    for packageId in truck2_packages:
+        assignPackageToTruck(packageId, 2)
+    for packageId in truck3_packages:
+        assignPackageToTruck(packageId, 3)
+
 
 packageHash = HashTableWChains()
 
@@ -137,45 +178,42 @@ def calculateDistance(addressIndex1, addressIndex2):
 
 loadPackageData('csvs/package.csv')
 
-# Initialize trucks with their respective packages and departure times
-truck1 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=8), [1, 13, 14, 15, 16, 19, 20, 27, 29, 30, 31, 34, 37, 40])
-truck2 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=11), [2, 3, 4, 5, 9, 18, 26, 28, 32, 35, 36, 38])
-truck3 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=9, minutes=5), [6, 7, 8, 10, 11, 12, 17, 21, 22, 23, 24, 25, 33, 39])
+# Initialize trucks with the package lists
+truck1 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=8), truck1_packages)
+truck2 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=9, minutes=5), truck2_packages)
+truck3 = Truck(18, 0.0, "4001 South 700 East", datetime.timedelta(hours=11), truck3_packages)
+
 
 # Function to simulate the delivery of packages by a truck
 def truckDeliverPackages(truck):
-    enroutePackages = []
-    for packageId in truck.packages:
-        package = packageHash.search(packageId)
-        enroutePackages.append(package)
+    enroutePackages = [packageHash.search(packageId) for packageId in truck.packages if packageHash.search(packageId) is not None]
 
     truck.packages.clear()
-    while len(enroutePackages) > 0:
+    while enroutePackages:
         shortestDistance = float('inf')
         nextPackage = None
+
         for package in enroutePackages:
-            # Priority packages
-            if package.id in [25, 6]:
+            currentAddressIndex = findAddressIndex(truck.currentLocation)
+            packageAddressIndex = findAddressIndex(package.street)
+            distanceToPackage = calculateDistance(currentAddressIndex, packageAddressIndex)
+
+            if distanceToPackage < shortestDistance:
+                shortestDistance = distanceToPackage
                 nextPackage = package
-                shortestDistance = calculateDistance(findAddressIndex(truck.currentLocation), findAddressIndex(package.street))
-                break
-            # Find the closest package
-            if calculateDistance(findAddressIndex(truck.currentLocation), findAddressIndex(package.street)) < shortestDistance:
-                shortestDistance = calculateDistance(findAddressIndex(truck.currentLocation), findAddressIndex(package.street))
-                nextPackage = package
-        truck.packages.append(nextPackage.id)    
-        enroutePackages.remove(nextPackage)
-        truck.miles += shortestDistance
-        truck.currentLocation = nextPackage.street
-        truck.time += datetime.timedelta(hours=shortestDistance / truck.speed)
-        nextPackage.deliveryTime = truck.time
-        nextPackage.departureTime = truck.departTime
-                      
-# Deliver packages using the trucks
+
+        if nextPackage:
+            truck.packages.append(nextPackage.id)    
+            enroutePackages.remove(nextPackage)
+            truck.miles += shortestDistance
+            truck.currentLocation = nextPackage.street
+            truck.time += datetime.timedelta(hours=shortestDistance / truck.speed)
+            nextPackage.deliveryTime = truck.time
+            nextPackage.departureTime = truck.departTime
+    
 truckDeliverPackages(truck1)
-truckDeliverPackages(truck3)
-truck2.departTime = min(truck1.time, truck3.time)
 truckDeliverPackages(truck2)
+truckDeliverPackages(truck3)
 
 print("Western Governors University Parcel Service")
 
